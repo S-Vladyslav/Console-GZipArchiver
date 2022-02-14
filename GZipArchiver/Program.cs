@@ -8,18 +8,9 @@ namespace GZipArchiver
     {
         static void Main(string[] args)
         {
+            Compressor compressorInstance = ConsoleParser.ConsoleArgumentsParsing(args);
 
-            var a = new Compressor();
-            // a.FileReadForCompression(@"D:\=Test\VLADIKMAN.png");
-
-            //Archiver.Compress(@"D:\пасворди.txt", @"D:\=Test\VLADIKMAN.zip");
-
-            a.FileReadForCompression(@"D:\VLADIKMAN.png");
-            a.CompressChunks();
-            a.WriteCompressedChunksToFile(@"D:\=Test\VLADIKMAN.zip");
 
         }
-
-       
     }
 }

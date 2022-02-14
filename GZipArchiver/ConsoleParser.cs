@@ -8,39 +8,53 @@ namespace GZipArchiver
 {
     static class ConsoleParser
     {
-        public static void ConsoleArgumentsParsing(string[] args)
+        public static Compressor ConsoleArgumentsParsing(string[] args)
         {
             if (args.Length == 0 || args[0].ToLower() == "-h" || args[0].ToLower() == "--help")
             {
-                WriteHelp();
-                return;
+                WriteHelpAndCloseApp();
             }
 
-            if (args[2].ToLower() == "compress")
+            string outName;
+
+            if (args[0] == "--default" || args[0] == "-f" || args.Length > 3)
             {
-                ;
-            }
-            else if (args[2].ToLower() == "decompress")
-            {
-                ;
+                outName = "default";
             }
             else
             {
-                WriteHelp();
-                return;
+                outName = args[0];
             }
 
-            ;
+            string action = "";
+
+            if (args[1].ToLower() == "--compress" || args[2].ToLower() == "-c")
+            {
+                action = "c";
+            }
+            else if (args[1].ToLower() == "--decompress" || args[2].ToLower() == "-d")
+            {
+                action = "d";
+            }
+            else
+            {
+                WriteHelpAndCloseApp();
+            }
+
+            List<string> inNames = new List<string>();
 
             for (int i = 2; i < args.Length; i++)
             {
-                ;
+                inNames.Add(args[i]);
             }
+
+            return new Compressor(outName, action, inNames.ToArray());
         }
 
-        public static void WriteHelp()
+        public static void WriteHelpAndCloseApp()
         {
             Console.WriteLine("*help*");
+            Environment.Exit(0);
         }
     }
 }

@@ -10,85 +10,137 @@ namespace GZipArchiver
 {
     class Compressor
     {
-        Queue<byte[]> fileReadingQueue = new Queue<byte[]>();
-        Queue<byte[]> fileWritingQueue = new Queue<byte[]>();
-        int chunkSize = 10000;
+        readonly string Action;
+        readonly string[] InputFileNames;
+        readonly string[] OutputFileName;
 
+        private Queue<byte[]> _fileReadingQueue = new Queue<byte[]>();
+        private Queue<byte[]> _fileWritingQueue = new Queue<byte[]>();
+        private int _chunkSize = 10000;
 
-        public void FileReadForCompression(string sourceFile)
+        private bool _error = false;
+
+        public Compressor(string outputFileName, string action, string[] inputFileNames)
         {
-            using (FileStream fileReadForCompression = new FileStream(sourceFile, FileMode.Open))
+            if (outputFileName == "default")
             {
-                int bytesForRead = chunkSize;
-
-                while (fileReadForCompression.Position < fileReadForCompression.Length)
-                {
-                    if (fileReadForCompression.Position + bytesForRead > fileReadForCompression.Length)
-                    {
-                        bytesForRead = (int)(fileReadForCompression.Length - fileReadForCompression.Position);
-                    }
-
-                    byte[] chunkBuffer = new byte[bytesForRead];
-                    fileReadForCompression.Read(chunkBuffer, 0, bytesForRead);
-                    fileReadingQueue.Enqueue(chunkBuffer);
-                }
-                ;
+                OutputFileName = inputFileNames;
             }
-            ;
+            else
+            {
+                OutputFileName = new string[] { outputFileName };
+            }
+            Action = action;
+            InputFileNames = inputFileNames;
         }
 
-        public void CompressChunks()
+        private void FileReadForCompression(string sourceFile)
         {
-            Console.WriteLine(fileReadingQueue.Count);
-            while (true && fileReadingQueue.Count > 0)
+            if (_error == true) return;
+
+            try
             {
-                Console.WriteLine(fileReadingQueue.Count);
-                byte[] chunkForCompressing = fileReadingQueue.Dequeue();
-
-                if (chunkForCompressing == null)
+                using (FileStream fileReadForCompression = new FileStream(sourceFile, FileMode.Open))
                 {
-                    return;
-                }
+                    int bytesForRead = _chunkSize;
 
-                using (MemoryStream memory = new MemoryStream())
-                {
-                    using (GZipStream gzipCompressor = new GZipStream(memory, CompressionMode.Compress))
+                    while (fileReadForCompression.Position < fileReadForCompression.Length)
                     {
-                        gzipCompressor.Write(chunkForCompressing, 0, chunkForCompressing.Length);
-                    }
+                        if (fileReadForCompression.Position + bytesForRead > fileReadForCompression.Length)
+                        {
+                            bytesForRead = (int)(fileReadForCompression.Length - fileReadForCompression.Position);
+                        }
 
-                    fileWritingQueue.Enqueue(memory.ToArray());
+                        byte[] chunkBuffer = new byte[bytesForRead];
+                        fileReadForCompression.Read(chunkBuffer, 0, bytesForRead);
+                        _fileReadingQueue.Enqueue(chunkBuffer);
+                    }
                 }
             }
-                
-
-            #region easy
-            //using (FileStream fileReaderStream = new FileStream(sourceFile, FileMode.Open))
-            //{
-            //    using (FileStream fileWriterStream = File.Create(compressedFile))
-            //    {
-            //        using (GZipStream fileCompressorStream = new GZipStream(fileWriterStream, CompressionMode.Compress))
-            //        {
-            //            fileReaderStream.CopyTo(fileCompressorStream);
-            //            Console.WriteLine($"{fileReaderStream.Length}\t{fileWriterStream.Length}");
-            //        }
-            //    }
-            //}
-
-            //return 0;
-            #endregion
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.Message);
+                _error = true;
+            }
         }
 
-        public void WriteCompressedChunksToFile(string compressedFile)
+        private void CompressChunks()
         {
-            using (FileStream fileCompressedWrite = new FileStream(compressedFile, FileMode.Create))
-            {
-                while(true && fileWritingQueue.Count > 0)
-                {
-                    byte[] compressedChunk = fileWritingQueue.Dequeue();
+            if (_error == true) return;
 
-                    fileCompressedWrite.Write(compressedChunk);
+            try
+            {
+                while (true && _fileReadingQueue.Count > 0)
+                {
+                    byte[] chunkForCompressing = _fileReadingQueue.Dequeue();
+
+                    if (chunkForCompressing == null)
+                    {
+                        return;
+                    }
+
+                    using (MemoryStream memory = new MemoryStream())
+                    {
+                        using (GZipStream gzipCompressor = new GZipStream(memory, CompressionMode.Compress))
+                        {
+                            gzipCompressor.Write(chunkForCompressing, 0, chunkForCompressing.Length);
+                        }
+
+                        _fileWritingQueue.Enqueue(memory.ToArray());
+                    }
                 }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.Message);
+                _error = true;
+            }
+        }
+
+        private void WriteCompressedChunksToFile(string outputFileName)
+        {
+            if (_error == true) return;
+
+            try
+            {
+                using (FileStream fileCompressedWrite = new FileStream(outputFileName + ".zip", FileMode.Create))
+                {
+                    while (true && _fileWritingQueue.Count > 0)
+                    {
+                        byte[] compressedChunk = _fileWritingQueue.Dequeue();
+
+                        fileCompressedWrite.Write(compressedChunk);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.Message);
+                _error = true;
+            }
+        }
+
+        private void Decompress(string compressedFile, string targetFile)
+        {
+            if (_error == true) return;
+
+            try
+            {
+                using (FileStream fileReaderStream = new FileStream(compressedFile, FileMode.Open))
+                {
+                    using (FileStream fileWriterStream = File.Create(targetFile))
+                    {
+                        using (GZipStream fileDecompressorStream = new GZipStream(fileReaderStream, CompressionMode.Decompress))
+                        {
+                            fileDecompressorStream.CopyTo(fileWriterStream);
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception.Message);
+                _error = true;
             }
         }
     }
