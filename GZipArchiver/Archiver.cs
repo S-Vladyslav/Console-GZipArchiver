@@ -4,9 +4,9 @@ using System.IO.Compression;
 
 namespace GZipArchiver
 {
-    class Archiver
+    static class Archiver
     {
-        static int Compress(string sourceFile, string compressedFile)
+        public static void Compress(string sourceFile, string compressedFile)
         {
             using (FileStream fileReaderStream = new FileStream(sourceFile, FileMode.Open))
             {
@@ -20,7 +20,7 @@ namespace GZipArchiver
                 }
             }
 
-            return 0;
+            //return 0;
         }
 
         static int Decompress(string compressedFile, string targetFile)
