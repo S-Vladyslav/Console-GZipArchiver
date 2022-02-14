@@ -5,44 +5,71 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace GZipArchiver
 {
-    class Compressor
+    class FileCompressor
     {
-        readonly string Action;
-        readonly string[] InputFileNames;
-        readonly string[] OutputFileName;
+        public readonly string InputFileName;
+
+        private readonly string Action;
+        private readonly string OutputFileName;
 
         private Queue<byte[]> _fileReadingQueue = new Queue<byte[]>();
         private Queue<byte[]> _fileWritingQueue = new Queue<byte[]>();
-        private int _chunkSize = 10000;
+
+        private const int _CHUNKSIZE = 10000;
 
         private bool _error = false;
+        private bool _finalized = false;
 
-        public Compressor(string outputFileName, string action, string[] inputFileNames)
+        public FileCompressor(string outputFileName, string action, string inputFileName)
         {
-            if (outputFileName == "default")
-            {
-                OutputFileName = inputFileNames;
-            }
-            else
-            {
-                OutputFileName = new string[] { outputFileName };
-            }
+            OutputFileName = outputFileName;
             Action = action;
-            InputFileNames = inputFileNames;
+            InputFileName = inputFileName;
         }
 
-        private void FileReadForCompression(string sourceFile)
+        public int StartFileCompression()
+        {
+            Console.WriteLine($"Start {InputFileName}");
+
+            if (Action == "c")
+            {
+                Console.WriteLine($"Compressing {InputFileName}");
+                FileReadForCompression();
+
+                CompressChunks();
+
+                WriteCompressedChunksToFile();
+
+                _finalized = true;
+            }
+            else if (Action == "d")
+            {
+                Console.WriteLine($"Decompressing {InputFileName}");
+                Decompress();
+                _finalized = true;
+            }
+
+            if (_finalized && !_error)
+            {
+                Console.WriteLine($"File {InputFileName} was successful compressed");
+                return 0;
+            }
+            return 1;
+        }
+
+        private void FileReadForCompression()
         {
             if (_error == true) return;
 
             try
             {
-                using (FileStream fileReadForCompression = new FileStream(sourceFile, FileMode.Open))
+                using (FileStream fileReadForCompression = new FileStream(InputFileName, FileMode.Open))
                 {
-                    int bytesForRead = _chunkSize;
+                    int bytesForRead = _CHUNKSIZE;
 
                     while (fileReadForCompression.Position < fileReadForCompression.Length)
                     {
@@ -97,13 +124,13 @@ namespace GZipArchiver
             }
         }
 
-        private void WriteCompressedChunksToFile(string outputFileName)
+        private void WriteCompressedChunksToFile()
         {
             if (_error == true) return;
 
             try
             {
-                using (FileStream fileCompressedWrite = new FileStream(outputFileName + ".zip", FileMode.Create))
+                using (FileStream fileCompressedWrite = new FileStream(OutputFileName, FileMode.Create))
                 {
                     while (true && _fileWritingQueue.Count > 0)
                     {
@@ -120,15 +147,15 @@ namespace GZipArchiver
             }
         }
 
-        private void Decompress(string compressedFile, string targetFile)
+        private void Decompress()
         {
             if (_error == true) return;
 
             try
             {
-                using (FileStream fileReaderStream = new FileStream(compressedFile, FileMode.Open))
+                using (FileStream fileReaderStream = new FileStream(InputFileName, FileMode.Open))
                 {
-                    using (FileStream fileWriterStream = File.Create(targetFile))
+                    using (FileStream fileWriterStream = File.Create(OutputFileName))
                     {
                         using (GZipStream fileDecompressorStream = new GZipStream(fileReaderStream, CompressionMode.Decompress))
                         {
